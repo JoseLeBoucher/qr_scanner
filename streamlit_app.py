@@ -1,52 +1,58 @@
 import streamlit as st
-from PIL import Image
-import numpy as np
 import cv2
+import numpy as np
+from PIL import Image
 
 st.title("Scanner de Codes-Barres avec Streamlit et OpenCV")
-st.write("Utilisez la caméra de votre téléphone pour scanner un code-barres. Le code sera détecté automatiquement.")
+st.write("Activez votre caméra pour détecter des codes-barres automatiquement.")
 
-# Utiliser le widget camera_input pour capturer une image
-uploaded_image = st.camera_input("Prenez une photo du code-barres")
+# Charger l'entrée de la caméra en continu
+frame_placeholder = st.empty()  # Placeholder pour afficher les frames
+barcode_result = st.empty()  # Placeholder pour afficher le résultat
 
-def decode_barcode(image):
+# Démarrer la caméra
+video_capture = cv2.VideoCapture(0)  # Utiliser la caméra par défaut (id=0)
+
+# Initialiser BarcodeDetector
+barcode_detector = cv2.barcode_BarcodeDetector()
+
+# Fonction de détection de codes-barres
+def detect_barcodes(frame):
     """
-    Détecte et décode les codes-barres dans une image en utilisant OpenCV BarcodeDetector.
+    Détecte et décode les codes-barres dans une frame.
 
     Args:
-        image (PIL.Image): Image capturée.
+        frame (numpy.ndarray): Image capturée de la caméra.
 
     Returns:
-        list: Liste des données décodées des codes-barres.
+        list: Liste des données des codes-barres détectés.
     """
-    # Convertir l'image PIL en format OpenCV (BGR)
-    cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-
-    # Initialiser le détecteur de codes-barres
-    barcode_detector = cv2.barcode_BarcodeDetector()
-
-    # Détecter et décoder les codes-barres
-    ok, decoded_info, decoded_type, corners = barcode_detector.detectAndDecode(cv_image)
-
+    ok, decoded_info, _, _ = barcode_detector.detectAndDecode(frame)
     if ok:
         return decoded_info
+    return []
+
+# Boucle pour capturer les frames de la caméra
+while True:
+    ret, frame = video_capture.read()
+    if not ret:
+        st.error("Erreur : impossible d'accéder à la caméra.")
+        break
+
+    # Convertir la frame en RGB pour l'affichage dans Streamlit
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    # Détecter les codes-barres dans la frame
+    detected_barcodes = detect_barcodes(frame)
+
+    # Afficher les résultats
+    if detected_barcodes:
+        barcode_result.success(f"Codes détectés : {', '.join(detected_barcodes)}")
     else:
-        return []
+        barcode_result.warning("Aucun code-barres détecté.")
 
-if uploaded_image is not None:
-    try:
-        # Ouvrir l'image avec PIL
-        image = Image.open(uploaded_image)
-        st.image(image, caption='Image Capturée', use_column_width=True)
+    # Afficher la vidéo dans Streamlit
+    frame_placeholder.image(rgb_frame, channels="RGB")
 
-        # Détecter et décoder les codes-barres
-        barcodes = decode_barcode(image)
-
-        if barcodes:
-            st.success(f"**{len(barcodes)} code(s) barre détecté(s) :**")
-            for idx, barcode_data in enumerate(barcodes, start=1):
-                st.write(f"**Code-barres {idx} :** {barcode_data}")
-        else:
-            st.error("Aucun code-barres détecté. Veuillez réessayer.")
-    except Exception as e:
-        st.error(f"Une erreur est survenue lors du traitement de l'image : {e}")
+# Libérer les ressources
+video_capture.release()

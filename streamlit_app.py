@@ -1,47 +1,23 @@
 import streamlit as st
-from PIL import Image, ImageDraw
-import numpy as np
+from PIL import Image
 from pyzbar.pyzbar import decode
 
-st.set_page_config(page_title="Scanner de QR Code", layout="centered")
+st.title("Scanner de Code-Barres avec Streamlit")
+st.write("Utilisez la caméra de votre téléphone pour scanner un code-barres.")
 
-st.title("📷 Scanner de QR Code avec Streamlit")
+# Utiliser le widget camera_input pour capturer une image
+uploaded_image = st.camera_input("Prenez une photo du code-barres")
 
-st.write("Cliquez sur le bouton ci-dessous pour capturer une image et scanner un QR code.")
-
-# Bouton pour capturer une image depuis la caméra
-captured_image = st.camera_input("Prenez une photo")
-
-if captured_image:
-    # Afficher l'image capturée
-    st.image(captured_image, caption='Image Capturée', use_column_width=True)
-
+if uploaded_image is not None:
     # Ouvrir l'image avec PIL
-    image = Image.open(captured_image).convert('RGB')
-    draw = ImageDraw.Draw(image)
+    image = Image.open(uploaded_image)
+    st.image(image, caption='Image capturée', use_column_width=True)
 
-    # Scanner le QR code
-    decoded_objects = decode(image)
+    # Décoder les codes-barres présents dans l'image
+    codes = decode(image)
 
-    if decoded_objects:
-        for obj in decoded_objects:
-            qr_data = obj.data.decode('utf-8')
-            st.success(f"🔍 QR Code Scanné: {qr_data}")
-
-            # Dessiner un encadré autour du QR code détecté
-            points = obj.polygon
-
-            # Si le QR code est dessiné avec plus de 4 points, approximer un rectangle
-            if len(points) > 4:
-                hull = []
-                for point in points:
-                    hull.append((point.x, point.y))
-                points = hull
-
-            # Dessiner les lignes du polygone
-            draw.line(points + [points[0]], fill='green', width=3)
-
-        # Afficher l'image avec les encadrés
-        st.image(image, caption='QR Code détecté', use_column_width=True)
+    if codes:
+        for idx, code in enumerate(codes, start=1):
+            st.success(f"**Code-barres {idx} :** {code.data.decode('utf-8')}")
     else:
-        st.error("❌ Aucun QR Code détecté. Veuillez réessayer.")
+        st.error("Aucun code-barres détecté. Veuillez réessayer.")

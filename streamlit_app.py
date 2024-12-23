@@ -1,18 +1,17 @@
 import streamlit as st
 from PIL import Image
 import numpy as np
-from pyzbar.pyzbar import decode
+import cv2
 
-st.title("Scanner de Code-Barres avec Streamlit et Pyzbar")
+st.title("Scanner de Codes-Barres avec Streamlit et OpenCV")
 st.write("Utilisez la caméra de votre téléphone pour scanner un code-barres. Le code sera détecté automatiquement.")
 
 # Utiliser le widget camera_input pour capturer une image
 uploaded_image = st.camera_input("Prenez une photo du code-barres")
 
-
 def decode_barcode(image):
     """
-    Détecte et décode les codes-barres dans une image.
+    Détecte et décode les codes-barres dans une image en utilisant OpenCV BarcodeDetector.
 
     Args:
         image (PIL.Image): Image capturée.
@@ -20,14 +19,19 @@ def decode_barcode(image):
     Returns:
         list: Liste des données décodées des codes-barres.
     """
-    # Convertir l'image PIL en format RGB
-    img = image.convert('RGB')
-    # Convertir l'image en tableau NumPy
-    np_image = np.array(img)
-    # Décoder les codes-barres présents dans l'image
-    barcodes = decode(np_image)
-    return barcodes
+    # Convertir l'image PIL en format OpenCV (BGR)
+    cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
+    # Initialiser le détecteur de codes-barres
+    barcode_detector = cv2.barcode_BarcodeDetector()
+
+    # Détecter et décoder les codes-barres
+    ok, decoded_info, decoded_type, corners = barcode_detector.detectAndDecode(cv_image)
+
+    if ok:
+        return decoded_info
+    else:
+        return []
 
 if uploaded_image is not None:
     try:
@@ -39,11 +43,9 @@ if uploaded_image is not None:
         barcodes = decode_barcode(image)
 
         if barcodes:
-            st.success(f"**{len(barcodes)} code(s) barres détecté(s) :**")
-            for idx, barcode in enumerate(barcodes, start=1):
-                barcode_data = barcode.data.decode('utf-8')
-                barcode_type = barcode.type
-                st.write(f"**Code-barres {idx} :** {barcode_data} ({barcode_type})")
+            st.success(f"**{len(barcodes)} code(s) barre détecté(s) :**")
+            for idx, barcode_data in enumerate(barcodes, start=1):
+                st.write(f"**Code-barres {idx} :** {barcode_data}")
         else:
             st.error("Aucun code-barres détecté. Veuillez réessayer.")
     except Exception as e:
